@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="title">
+    Hall of Fame
+</h1>
+
+<div class="container">
+    <div class="columns is-centered">
+        <table class="table">
+            <thead>
+                <tr class="has-background-info">
+                    <th>Ranking</th>
+                    <th>Username</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for game in games %}
+                <tr class="{{ loop.cycle('has-background-white-bis','has-background-white-ter') }}">
+                    <th class="has-text-right">#{{ loop.index }}</th>
+                    <td class="has-text-left">{{ game.User['name'] }}</td>
+                    <td class="has-text-right">{{ game.Game['score'] | string }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

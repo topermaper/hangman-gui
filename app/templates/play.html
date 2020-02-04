@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="title">
+	Playing Hangman: 
+</h1>
+<h2 class="subtitle">
+	<p>game #{{ hangman.id }}</p>
+</h2>
+
+<div class="columns has-background-white-ter">
+	<div class="column is-half is-centered">
+		<img class="hangman misses{{ hangman.misses | string }}">
+	</div>
+	<div class="column is-half">
+		<div>
+			<p class="has-text-black is-size-2">
+				Score: {{ hangman.score | string }}
+			</p>
+			<p class="has-text-black">
+				Multiplier: x{{ hangman.multiplier | string }}
+			</p>
+		</div>
+		<section class="section">
+			<div class="columns is-centered">
+				<div class="column is-narrow">
+				<table class="table is-bordered">
+					<tr>
+					{% for char in hangman.secret_word %}
+						{% if loop.index0 in hangman.get_word_mask() %}
+						<td> </td>
+						{% else %}
+						<td>{{ char }}</td>
+						{% endif %}	 
+					{% endfor %}
+					</tr>
+				</table>
+				</div>
+			</div>
+		</section>
+	
+		{% if hangman.status == 'ACTIVE' %}
+		<form action="" method="post">
+			
+			{{ form.hidden_tag() }}
+		
+			<div class="field is-grouped">
+				<p class="control is-expanded">
+					{{ form.guess_character(class_="input is-rounded has-text-centered", maxlength=1, autofocus=true) }}
+				</p>
+				<p class="control">
+					{{ form.submit(class_="button is-link") }}
+				</p>
+			  </div>	  
+		</form>
+		{% endif %}
+	</div>
+	
+</div>
+{% endblock %}
