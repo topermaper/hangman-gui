@@ -19,8 +19,8 @@
             {% for game in games %}
                 <tr class="{{ loop.cycle('has-background-white-bis','has-background-white-ter') }}">
                     <th class="has-text-right">#{{ loop.index }}</th>
-                    <td class="has-text-left">{{ game.User['name'] }}</td>
-                    <td class="has-text-right">{{ game.Game['score'] | string }}</td>
+                    <td class="has-text-left">{{ game['user']['name'] }}</td>
+                    <td class="has-text-right">{{ game.score | string }}</td>
                 </tr>
             {% endfor %}
             </tbody>

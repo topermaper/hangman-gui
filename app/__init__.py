@@ -1,6 +1,6 @@
-from flask import Flask, session
+from flask import Flask
 from flask_login import LoginManager
-#from flask import Session
+from flask_session import Session
 
 # Start Flask app
 app = Flask(__name__)
@@ -12,17 +12,8 @@ login_manager.login_view = 'auth.login'
 login_manager.init_app(app)
 
 # Initialize session
-#session = Session()
-#sess.init_app(app)
-
-from app.models.user import User
-@login_manager.user_loader
-def load_user(user_id):
-    print(user_id)
-    print(session)
-    print(session.get('user_id'))
-    return User(user_id)
-
+session = Session()
+session.init_app(app)
 
 # import blueprints
 from app.blueprints.gui import gui

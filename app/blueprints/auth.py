@@ -1,18 +1,21 @@
 import requests
 from urllib.parse import urljoin
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import make_response, Blueprint, render_template, redirect, url_for, request, flash,session
+from flask_login import login_user, logout_user, login_required, current_user, LoginManager
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models.user import User
+from app.api.api_interface import APIInterface
 
-from app import app
+from app import app,login_manager
 
 auth = Blueprint('auth',__name__)
+
 
 @auth.route('/login')
 def login():
     return render_template('login.html')
+
 
 @auth.route('/login', methods=['POST'])
 def login_post():
@@ -20,42 +23,55 @@ def login_post():
     password = request.form.get('password')
     remember = True if request.form.get('remember') else False
 
-    # Build API request
-    login_json={"email":email, "password":password}
-    login_url = urljoin(app.config['API_BASE_URL'],'login')
-
     try:
-        req = requests.post(url=login_url,json=login_json)
-    except:
+        login_response = APIInterface.login(email=email, password=password)
+    except Exception as e:
         # if there is an error, we want to redirect back to login page so user can try again
-        flash('Can not contact the server', 'is-danger')
+        flash('Can not log in user: {}'.format(e), 'is-danger')
         return redirect(url_for('auth.login'))
 
-    response_message = req.json().get('message')
-    
-    if req.status_code != 200:
-        flash(response_message,'is-danger')
-        # API does not authenticate the user, reload the page
-        return redirect(url_for('auth.login'))
+    # If the above check passes, then we know the user has the right credentials
+    access_token    = login_response.get('access_token')
+    refresh_token   = login_response.get('refresh_token')
+    user_id         = login_response.get('user',{}).get('id')
+    name            = login_response.get('user',{}).get('name')
+    email           = login_response.get('user',{}).get('email')
 
-    # if the above check passes, then we know the user has the right credentials
-    login_user(User(email), remember=remember)
-    return redirect(url_for('gui.home'))
+    # UserMixin object must be initialised with id attribute or attempting to log in raises an error
+    user = User(id=user_id, name=name, email=email)
+    login_user(user, remember=remember)
+
+    # Include access and refresh token
+    session['access_token']  = access_token
+    session['refresh_token'] = refresh_token
+    # Include user extra details
+    session['user_name']  = name
+    session['user_email'] = email
+
+    resp = make_response(redirect(url_for('gui.home')))
+
+    return resp
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User(id=user_id,name=session.get('user_name'),email=session.get('user_email'))
+
 
 @auth.route('/signup')
 def signup():
     return render_template('signup.html')
 
+
 @auth.route('/signup', methods=['POST'])
 def signup_post():
-
     email    = request.form.get('email')
     name     = request.form.get('name')
     password = request.form.get('password')
 
     # Build API request
     signup_json={"email":email, "name":name, "password":password}
-    login_url = urljoin(app.config['API_BASE_URL'],'users')
+    login_url = urljoin(app.config['API_BASE_URL'],'user')
 
     try:
         req = requests.post(url=login_url,json=signup_json)
@@ -63,21 +79,20 @@ def signup_post():
         # if there is an error, we want to redirect back to signup page so user can try again
         flash('Can not contact the server', 'is-danger')
         return redirect(url_for('auth.signup'))
-
-    response_message = req.json().get('message')
     
     if req.status_code == 201:
         # user successfully created, we want to redirect to the login page
-        flash(response_message, 'is-success')
+        flash("User created successfully", 'is-success')
         return redirect(url_for('auth.login'))
     else:
         # if there is an error, we want to redirect back to signup page so user can try again
-        flash(response_message, 'is-danger')
+        flash("There was an error signing in", 'is-danger')
         return redirect(url_for('auth.signup'))
 
 
 @auth.route('/logout')
 @login_required
 def logout():
+    resp = redirect(url_for('gui.home'))
     logout_user()
-    return redirect(url_for('gui.home'))
+    return resp,302
