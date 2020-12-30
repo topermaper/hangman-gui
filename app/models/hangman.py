@@ -56,8 +56,6 @@ class Hangman(object):
         session['current_game'] = self.__dict__
         return True
 
-    def getHallOfFame():
-        return APIInterface.getHallOfFame()
 
     def guessWord(self, user_guess_char):
         response_json = APIInterface.guessWord(game_id = self.id , user_guess = self.user_guess + user_guess_char )

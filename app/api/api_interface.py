@@ -4,93 +4,81 @@ import json
 from flask import request, session
 from urllib.parse import urljoin
 from app import app
+from app.errors.api import RefreshTokenExpiredError
+from flask import flash,redirect, url_for
 
 class APIInterface(object):
     
-    GAME_URL      = urljoin(app.config['API_BASE_URL'], app.config['API_GAMES_URL'])
-    TOKEN_URL     = urljoin(app.config['API_BASE_URL'], app.config['API_TOKENS_URL'])
-    LOGIN_URL     = urljoin(app.config['API_BASE_URL'], app.config['API_LOGIN_URL'])
-    USER_URL      = urljoin(app.config['API_BASE_URL'], app.config['API_USERS_URL'])
+    GAME_URL   = urljoin(app.config['API_BASE_URL'], app.config['API_GAME_URL'])
+    TOKEN_URL  = urljoin(app.config['API_BASE_URL'], app.config['API_TOKEN_URL'])
+    LOGIN_URL  = urljoin(app.config['API_BASE_URL'], app.config['API_LOGIN_URL'])
+    USER_URL   = urljoin(app.config['API_BASE_URL'], app.config['API_USER_URL'])
+
 
     def refreshToken():
-        try:
-            req = requests.post(url = APIInterface.TOKEN_URL, headers = {"Authorization":"Bearer " + session.get('refresh_token')})
-        except Exception as e:
-            return False
+        # Build request params
+        url = APIInterface.TOKEN_URL
+        headers  = {'Authorization':'Bearer {}'.format(session.get('refresh_token'))}
+    
+        # Send token refresh request
+        req = requests.post(url = url, headers = headers)
   
-        if req.status_code != 200:
-            return False
-
-        session['access_token'] = req.json().get('access_token')
-
-        return True
+        if req.status_code == 200:
+            session['access_token'] = req.json().get('access_token')
+            return True
+        elif req.status_code == 401:
+            raise RefreshTokenExpiredError('Refresh token expired')
+        else:
+            raise Exception('Could not refresh JWT access token. HTTP status {}'.format(req.status_code))
+            
 
     def createGame(reattempt = False):
-
-        # session user_id is Unicode
-        json={"user_id" : int(session['user_id'])}
+        # Build request params
+        payload  = {'user_id' : int(session['user_id'])} # session user_id is Unicode
+        headers  = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
 
         #Send API request
-        try:
-            req = requests.post(url = APIInterface.GAME_URL, headers = {"Authorization":"Bearer " + session.get('access_token')}, json = json)
-        except Exception as e:
-            return False
+        req = requests.post(url = APIInterface.GAME_URL, headers = headers, json = payload)
         
         # Game created successfully
         if req.status_code == 201:
             return req.json()
-
-        # Already refreshed token and failed again
-        if reattempt:
-            return False
-
+        elif req.status_code != 401 or reattempt == True:
+                raise Exception('Can not create game. HTTP status {}'.format(req.status_code))
+        
         # Attempt to refresh token
-        if not APIInterface.refreshToken():
-            return False
+        APIInterface.refreshToken()    
 
         # Recursive call after getting new access token
-        if req.status_code == 201:
-            return APIInterface.createGame(reattempt=True)
-        else:
-            raise Exception("API returned not expected status {}".format(req.status_code))
+        return APIInterface.createGame(reattempt=True)
 
 
     def guessWord(game_id, user_guess, reattempt = False):
-        # Build request
+        # Build request params
         url     = APIInterface.GAME_URL+'/'+str(game_id)
-        headers = {"Authorization":"Bearer " + session.get('access_token')}
-        json    = {"user_guess": user_guess}
+        headers = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
+        payload = {'user_guess': user_guess}
         
         # Send API request
-        try:
-            req = requests.patch(url = url, headers = headers, json = json)
-        except Exception as e:
-            print(e)
-            return False
+        req = requests.patch(url = url, headers = headers, json = payload)
         
         # Game created successfully
         if req.status_code == 200:
             return req.json()
-
-        # Already refreshed token and failed again
-        if reattempt:
-            return False
+        elif req.status_code != 401 or reattempt == True:
+            raise Exception('Can not play game. HTTP status {}'.format(req.status_code))
 
         # Attempt to refresh token
-        if not APIInterface.refreshToken():
-            return False
+        APIInterface.refreshToken()
 
         # Recursive call after getting new access token
-        if req.status_code == 200:
-            return APIInterface.guessWord(game_id = game_id, user_guess = user_guess, reattempt = True)
-        else:
-            raise Exception("API returned not expected status {}".format(req.status_code))
+        return APIInterface.guessWord(game_id = game_id, user_guess = user_guess, reattempt = True)
 
 
     def getHallOfFame(reattempt = False):
         # Build request params
         url      = APIInterface.GAME_URL
-        headers  = {"Authorization":"Bearer " + session.get('access_token')}
+        headers  = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
         order_by = [dict(field='score', direction='desc')]
         filters  = [dict(name='status', op= '==', val='WON')]
 
@@ -98,67 +86,28 @@ class APIInterface(object):
 
         # Send API request
         req = requests.get(url = url, headers = headers, params=params)
-        
+
         # Game created successfully
         if req.status_code == 200:
             return req.json().get('objects')
 
-        # Already refreshed token and failed again
-        if reattempt:
-            return False
-
         # Attempt to refresh token
-        if not APIInterface.refreshToken():
-            return False
+        APIInterface.refreshToken()
 
         # Recursive call after getting new access token
-        if req.status_code == 201:
-            return APIInterface.getHallOfFame(reattempt=True)
-        else:
-            raise Exception("API returned not expected status {}".format(req.status_code))
-
-
-    def getUser(user_id, reattempt = False):
-        url = "{}/{}".format(APIInterface.USER_URL,str(user_id))
-        headers = {"Authorization":"Bearer " + session.get('access_token')}
-
-        #Send API request
-        try:
-            req = requests.get(url = url, headers = headers)
-        except Exception as e:
-            return False
-
-        # User retrieved successfully
-        if req.status_code == 200:
-            response_json = req.json()
-            return {
-                "id"    : response_json.get('id'),
-                "email" : response_json.get('email'),
-                "name"  : response_json.get('name')            
-            }
-
-        # Already refreshed token and failed again
-        if reattempt:
-            return False
-
-        # Attempt to refresh token
-        if not APIInterface.refreshToken():
-            return False
-
-        # Recursive call after getting new access token
-        if req.status_code == 200:
-            return APIInterface.getUser(reattempt=True)
-        else:
-            raise Exception("Could not get retrieve user information. Got HTTP status {}".format(req.status_code))
+        return APIInterface.getHallOfFame(reattempt=True)
 
 
     def login(email, password):
-        # Build request
-        url     = APIInterface.LOGIN_URL
-        json    = {"email":email, "password":password}
+        # Build request params
+        url  = APIInterface.LOGIN_URL
+        payload = {
+            'email'    : email,
+            'password' : password
+        }
         
         # Send API request
-        req = requests.post(url = url, json = json)
+        req = requests.post(url = url, json = payload)
 
         if req.status_code != 200:
             message = req.json().get('message')
@@ -172,6 +121,27 @@ class APIInterface(object):
             "user"          : user,
             "access_token"  : access_token,
             "refresh_token" : refresh_token,
+        }
+
+        return response
+
+
+    def signup(email, password, name):
+        # Build request params
+        url = APIInterface.USER_URL
+        payload = {'email' : email, 'password' : password, 'name' : name}
+        
+        # Send API request
+        req = requests.post(url = url, json = payload)
+
+        if req.status_code != 201:
+            message = req.json().get('message')
+            raise Exception(message)
+
+        id = req.json().get('id')
+        
+        response = {
+            "id" : id
         }
 
         return response

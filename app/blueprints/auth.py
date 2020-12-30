@@ -19,7 +19,7 @@ def login():
 
 @auth.route('/login', methods=['POST'])
 def login_post():
-    email = request.form.get('email')
+    email    = request.form.get('email')
     password = request.form.get('password')
     remember = True if request.form.get('remember') else False
 
@@ -69,30 +69,22 @@ def signup_post():
     name     = request.form.get('name')
     password = request.form.get('password')
 
-    # Build API request
-    signup_json={"email":email, "name":name, "password":password}
-    login_url = urljoin(app.config['API_BASE_URL'],'user')
-
     try:
-        req = requests.post(url=login_url,json=signup_json)
-    except:
+        signup_response = APIInterface.signup(email = email, password = password, name = name)
+    except Exception as e:
         # if there is an error, we want to redirect back to signup page so user can try again
-        flash('Can not contact the server', 'is-danger')
+        flash('Something went wrong: {}'.format(e), 'is-danger')
         return redirect(url_for('auth.signup'))
-    
-    if req.status_code == 201:
-        # user successfully created, we want to redirect to the login page
-        flash("User created successfully", 'is-success')
-        return redirect(url_for('auth.login'))
-    else:
-        # if there is an error, we want to redirect back to signup page so user can try again
-        flash("There was an error signing in", 'is-danger')
-        return redirect(url_for('auth.signup'))
+
+    # user successfully created, we want to redirect to the login page
+    flash("User created successfully", 'is-success')
+    return redirect(url_for('auth.login'))
+
 
 
 @auth.route('/logout')
 @login_required
 def logout():
-    resp = redirect(url_for('gui.home'))
+    resp = redirect(url_for('auth.login'))
     logout_user()
     return resp,302

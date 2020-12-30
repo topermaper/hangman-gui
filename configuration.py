@@ -36,9 +36,9 @@ class BaseConfig(object):
     # API configuration
     TOKEN_EXPIRATION = 3600
     API_BASE_URL     = 'http://localhost.localdomain:50011/api/v1/'
-    API_GAMES_URL    = 'game'
-    API_TOKENS_URL   = 'token'
-    API_USERS_URL    = 'user'
+    API_GAME_URL    = 'game'
+    API_TOKEN_URL   = 'token'
+    API_USER_URL    = 'user'
     API_LOGIN_URL    = 'login'
 
 class ProductionConfig(BaseConfig):

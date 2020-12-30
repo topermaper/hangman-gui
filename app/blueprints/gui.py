@@ -1,12 +1,14 @@
 from flask import Blueprint,render_template, flash, get_flashed_messages, request, redirect, url_for, session
 
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, logout_user
 
+from app import app,login_manager
 from app.models.hangman import Hangman
 from app.models.user import User
 from app.forms.game import GameForm
+from app.errors.api import RefreshTokenExpiredError
+from app.api.api_interface import APIInterface
 
-from app import app,login_manager
 
 gui = Blueprint('gui',__name__)
 
@@ -19,7 +21,16 @@ def home():
 
 @gui.route('/halloffame')
 def halloffame():
-    games = Hangman.getHallOfFame()
+    try:
+        games = APIInterface.getHallOfFame()
+    except RefreshTokenExpiredError as e:
+        # Refresh token expired, we have to log in again
+        flash('Session expired. Log in again','is-danger')
+        return redirect(url_for('auth.logout'))
+    except Exception as e:
+        flash('Failed to retrieve Hall of Fame. {}'.format(e),'is-danger')
+        return render_template('halloffame.html')
+
     return render_template('halloffame.html',games=games)
 
 
@@ -27,14 +38,18 @@ def halloffame():
 @login_required
 def play():
     user = current_user
-
     hangman = Hangman()
-    if hangman.startGame():
-        form = GameForm()
-        return render_template('play.html',hangman=hangman,form=form)
-    else:
-        flash('ERROR', 'is-danger')
+    try:
+        hangman.startGame()
+    except RefreshTokenExpiredError as e:
+        # Refresh token expired, we have to log in again
+        flash('Session expired. Log in again','is-danger')
+        return redirect(url_for('auth.logout'))
+    except Exception as e:
+        flash('Failed to start game. {}'.format(e),'is-danger')
         return render_template('home.html')
+    
+    return render_template('play.html', hangman = hangman, form = GameForm())
 
 
 @gui.route('/play',methods=['POST'])
@@ -48,6 +63,10 @@ def play_post():
         if form.validate_on_submit():
             try:
                 hangman.guessWord(user_guess_char = form.guess_character.data)
+            except RefreshTokenExpiredError as e:
+                # Refresh token expired, we have to log in again
+                flash('Session expired. Log in again','is-danger')
+                return redirect(url_for('auth.logout'))
             except Exception as e:
                 flash("Something went wrong submitting your guess character. {}".format(e), 'is-danger')
 
