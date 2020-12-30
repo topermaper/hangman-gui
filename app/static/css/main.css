@@ -1,8 +1,14 @@
 div.hero-body {
-    background-image: url('../images/main_screen.jpeg');
+    background-image: url('../images/hangman_bg.jpg');
     background-repeat: no-repeat;
     background-attachment: fixed; 
     background-size: 100% 100%;
+}
+
+.play-area {
+    padding: 20px;
+    border-radius: 20px;
+    background-color: #ffffff61;
 }
 
 img.hangman {
