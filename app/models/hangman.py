@@ -56,6 +56,21 @@ class Hangman(object):
         session['current_game'] = self.__dict__
         return True
 
+    def loadGame(self,id):
+        response_json = APIInterface.getGame(id)
+
+        self.id          = response_json.get('id')
+        self.misses      = response_json.get('misses')
+        self.score       = response_json.get('score')
+        self.multiplier  = response_json.get('multiplier')
+        self.secret_word = response_json.get('secret_word')
+        self.status      = response_json.get('status')
+        self.user_guess  = response_json.get('user_guess')
+
+        # Store current game in the session
+        session['current_game'] = self.__dict__
+        return True
+
 
     def guessWord(self, user_guess_char):
         response_json = APIInterface.guessWord(game_id = self.id , user_guess = self.user_guess + user_guess_char )
@@ -70,7 +85,6 @@ class Hangman(object):
 
         # Store current game in the session
         session['current_game'] = self.__dict__
-
         return True
 
 

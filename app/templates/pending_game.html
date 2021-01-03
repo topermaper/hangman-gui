@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="column is-4 is-offset-4">
+    <h3 class="title">Pending game</h3>
+    <div class="box">
+        <div>Game #{{game.id}} was not finished. Would you like to continue where you left or play a new game ?</div>
+        <form method="POST" action="/play">
+            {{ form.hidden_tag() }}
+            {{ form.new_game(class_="button is-block is-info is-large is-fullwidth") }}
+            {{ form.restore_game(class_="button is-block is-info is-large is-fullwidth") }}
+        </form>
+    </div>
+</div>
+{% endblock %}

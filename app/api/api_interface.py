@@ -144,4 +144,77 @@ class APIInterface(object):
             "id" : id
         }
 
-        return response
+        return 
+        
+    
+    def getHallOfFame(reattempt = False):
+        # Build request params
+        url      = APIInterface.GAME_URL
+        headers  = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
+        order_by = [dict(field='score', direction='desc')]
+        filters  = [dict(name='status', op= '==', val='WON')]
+
+        params   = dict(q=json.dumps(dict(filters=filters, order_by=order_by, limit=10)))
+
+        # Send API request
+        req = requests.get(url = url, headers = headers, params=params)
+
+        # Game created successfully
+        if req.status_code == 200:
+            return req.json().get('objects')
+
+        # Attempt to refresh token
+        APIInterface.refreshToken()
+
+        # Recursive call after getting new access token
+        return APIInterface.getHallOfFame(reattempt=True)
+
+
+    def getGames(params={}, reattempt = False):
+        # Build request params
+        url      = APIInterface.GAME_URL
+        headers  = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
+
+        # Send API request
+        req = requests.get(url = url, headers = headers, params = params)
+
+        # Game created successfully
+        if req.status_code == 200:
+            return req.json().get('objects')
+
+        # Attempt to refresh token
+        APIInterface.refreshToken()
+
+        # Recursive call after getting new access token
+        return APIInterface.getGames(params = params, reattempt = True)
+
+
+    def getGame(game_id, reattempt = False):
+        # Build request params
+        url      = '{url}/{game_id}'.format(url = APIInterface.GAME_URL, game_id = str(game_id))
+        headers  = {'Authorization':'Bearer {}'.format(session.get('access_token'))}
+
+        # Send API request
+        req = requests.get(url = url, headers = headers)
+
+        # Game created successfully
+        if req.status_code == 200:
+            return req.json()
+
+        # Attempt to refresh token
+        APIInterface.refreshToken()
+
+        # Recursive call after getting new access token
+        return APIInterface.getGame(game_id = game_id, reattempt = True)
+
+
+    def getUserLastActiveGame(user_id):
+        # Build query params
+        order_by = [dict(field='id', direction='desc')]
+        filters  = [dict(name='status', op= '==', val='ACTIVE')]
+
+        params   = dict(q=json.dumps(dict(filters=filters, order_by=order_by, limit=1)))
+
+        return APIInterface.getGames(params = params)
+
+  
